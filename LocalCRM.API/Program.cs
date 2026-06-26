@@ -1,16 +1,25 @@
 using LocalCRM.Application;
 using LocalCRM.Infrastructure;
+using Microsoft.EntityFrameworkCore;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Add CORS
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 // Add services to the container.
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
 
@@ -19,18 +28,14 @@ using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<LocalCRM.Infrastructure.Persistence.LocalCRMContext>();
     var identityService = scope.ServiceProvider.GetRequiredService<LocalCRM.Application.Common.Interfaces.IIdentityService>();
-    context.Database.EnsureCreated();
+
+    context.Database.Migrate();
     await LocalCRM.Infrastructure.Persistence.LocalCRMContextSeed.SeedDefaultDataAsync(context, identityService);
 }
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-
 app.UseMiddleware<LocalCRM.API.Middleware.ExceptionHandlingMiddleware>();
+
+app.UseCors("AllowAll");
 
 app.UseHttpsRedirection();
 
