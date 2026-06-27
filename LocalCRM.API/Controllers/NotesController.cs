@@ -10,48 +10,45 @@ namespace LocalCRM.API.Controllers;
 public class NotesController : ControllerBase
 {
     private readonly INoteService _noteService;
-
-    public NotesController(INoteService noteService)
-    {
-        _noteService = noteService;
-    }
+    public NotesController(INoteService noteService) => _noteService = noteService;
 
     [HttpGet]
-    public async Task<ActionResult<List<NoteDto>>> GetNotes()
-    {
-        return await _noteService.GetNotesAsync();
-    }
+    public async Task<ActionResult<List<NoteDto>>> GetAll([FromQuery] bool includeDeleted = false) => await _noteService.GetAllAsync(includeDeleted);
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<NoteDto>> GetNote(int id)
+    public async Task<ActionResult<NoteDto>> GetById(int id)
     {
-        var result = await _noteService.GetNoteByIdAsync(id);
-        if (result == null) return NotFound();
-        return result;
+        var result = await _noteService.GetByIdAsync(id);
+        return result == null ? NotFound() : result;
     }
 
     [HttpPost]
-    public async Task<ActionResult<NoteDto>> CreateNote(CreateNoteCommand command)
+    public async Task<ActionResult<NoteDto>> Create(CreateNoteCommand command)
     {
-        var result = await _noteService.CreateNoteAsync(command);
-        return CreatedAtAction(nameof(GetNote), new { id = result.NoteId }, result);
+        var result = await _noteService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.NoteId }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateNote(int id, UpdateNoteCommand command)
+    public async Task<IActionResult> Update(int id, UpdateNoteCommand command)
     {
         if (id != command.NoteId) return BadRequest();
-        try { await _noteService.UpdateNoteAsync(command); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
-        catch (Exception ex) when (ex.Message == "Concurrency conflict") { return Conflict(); }
+        await _noteService.UpdateAsync(command);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteNote(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        try { await _noteService.DeleteNoteAsync(id); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
+        await _noteService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _noteService.RestoreAsync(id);
         return NoContent();
     }
 }

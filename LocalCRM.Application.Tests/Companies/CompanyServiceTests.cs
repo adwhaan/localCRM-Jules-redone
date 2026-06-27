@@ -24,7 +24,7 @@ public class CompanyServiceTests
     }
 
     [Fact]
-    public async Task CreateCompanyAsync_ShouldCreateCompanyAndAuditLog()
+    public async Task CreateAsync_ShouldCreateCompanyAndAuditLog()
     {
         // Arrange
         var options = new DbContextOptionsBuilder<LocalCRMContext>()
@@ -44,11 +44,10 @@ public class CompanyServiceTests
         };
 
         // Act
-        var result = await service.CreateCompanyAsync(command);
+        var resultId = await service.CreateAsync(command);
 
         // Assert
-        Assert.NotNull(result);
-        Assert.Equal("Test Company", result.Name);
+        Assert.True(resultId > 0);
         Assert.Equal(1, await context.Companies.CountAsync());
         Assert.Equal(1, await context.AuditLogs.CountAsync());
     }

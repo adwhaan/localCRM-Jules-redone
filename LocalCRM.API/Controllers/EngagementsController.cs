@@ -10,48 +10,45 @@ namespace LocalCRM.API.Controllers;
 public class EngagementsController : ControllerBase
 {
     private readonly IEngagementService _engagementService;
-
-    public EngagementsController(IEngagementService engagementService)
-    {
-        _engagementService = engagementService;
-    }
+    public EngagementsController(IEngagementService engagementService) => _engagementService = engagementService;
 
     [HttpGet]
-    public async Task<ActionResult<List<EngagementDto>>> GetEngagements()
-    {
-        return await _engagementService.GetEngagementsAsync();
-    }
+    public async Task<ActionResult<List<EngagementDto>>> GetAll([FromQuery] bool includeDeleted = false) => await _engagementService.GetAllAsync(includeDeleted);
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<EngagementDto>> GetEngagement(int id)
+    public async Task<ActionResult<EngagementDto>> GetById(int id)
     {
-        var result = await _engagementService.GetEngagementByIdAsync(id);
-        if (result == null) return NotFound();
-        return result;
+        var result = await _engagementService.GetByIdAsync(id);
+        return result == null ? NotFound() : result;
     }
 
     [HttpPost]
-    public async Task<ActionResult<EngagementDto>> CreateEngagement(CreateEngagementCommand command)
+    public async Task<ActionResult<EngagementDto>> Create(CreateEngagementCommand command)
     {
-        var result = await _engagementService.CreateEngagementAsync(command);
-        return CreatedAtAction(nameof(GetEngagement), new { id = result.EngagementId }, result);
+        var result = await _engagementService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.EngagementId }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateEngagement(int id, UpdateEngagementCommand command)
+    public async Task<IActionResult> Update(int id, UpdateEngagementCommand command)
     {
         if (id != command.EngagementId) return BadRequest();
-        try { await _engagementService.UpdateEngagementAsync(command); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
-        catch (Exception ex) when (ex.Message == "Concurrency conflict") { return Conflict(); }
+        await _engagementService.UpdateAsync(command);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteEngagement(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        try { await _engagementService.DeleteEngagementAsync(id); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
+        await _engagementService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _engagementService.RestoreAsync(id);
         return NoContent();
     }
 }

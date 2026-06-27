@@ -11,47 +11,45 @@ public class ContactsController : ControllerBase
 {
     private readonly IContactService _contactService;
 
-    public ContactsController(IContactService contactService)
-    {
-        _contactService = contactService;
-    }
+    public ContactsController(IContactService contactService) => _contactService = contactService;
 
     [HttpGet]
-    public async Task<ActionResult<List<ContactDto>>> GetContacts()
-    {
-        return await _contactService.GetContactsAsync();
-    }
+    public async Task<ActionResult<List<ContactDto>>> GetAll([FromQuery] bool includeDeleted = false) => await _contactService.GetAllAsync(includeDeleted);
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<ContactDto>> GetContact(int id)
+    public async Task<ActionResult<ContactDto>> GetById(int id)
     {
-        var contact = await _contactService.GetContactByIdAsync(id);
-        if (contact == null) return NotFound();
-        return contact;
+        var contact = await _contactService.GetByIdAsync(id);
+        return contact == null ? NotFound() : contact;
     }
 
     [HttpPost]
-    public async Task<ActionResult<ContactDto>> CreateContact(CreateContactCommand command)
+    public async Task<ActionResult<ContactDto>> Create(CreateContactCommand command)
     {
-        var contact = await _contactService.CreateContactAsync(command);
-        return CreatedAtAction(nameof(GetContact), new { id = contact.ContactId }, contact);
+        var contact = await _contactService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = contact.ContactId }, contact);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateContact(int id, UpdateContactCommand command)
+    public async Task<IActionResult> Update(int id, UpdateContactCommand command)
     {
         if (id != command.ContactId) return BadRequest();
-        try { await _contactService.UpdateContactAsync(command); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
-        catch (Exception ex) when (ex.Message == "Concurrency conflict") { return Conflict(); }
+        await _contactService.UpdateAsync(command);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteContact(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        try { await _contactService.DeleteContactAsync(id); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
+        await _contactService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _contactService.RestoreAsync(id);
         return NoContent();
     }
 }

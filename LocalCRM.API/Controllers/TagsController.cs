@@ -10,21 +10,37 @@ namespace LocalCRM.API.Controllers;
 public class TagsController : ControllerBase
 {
     private readonly ITagService _tagService;
-
-    public TagsController(ITagService tagService)
-    {
-        _tagService = tagService;
-    }
+    public TagsController(ITagService tagService) => _tagService = tagService;
 
     [HttpGet]
-    public async Task<ActionResult<List<TagDto>>> GetTags()
+    public async Task<ActionResult<List<TagDto>>> GetAll() => await _tagService.GetAllAsync();
+
+    [HttpGet("{id}")]
+    public async Task<ActionResult<TagDto>> GetById(int id)
     {
-        return await _tagService.GetTagsAsync();
+        var result = await _tagService.GetByIdAsync(id);
+        return result == null ? NotFound() : result;
     }
 
-    [HttpGet("group/{group}")]
-    public async Task<ActionResult<List<TagDto>>> GetTagsByGroup(string group)
+    [HttpPost]
+    public async Task<ActionResult<TagDto>> Create(CreateTagCommand command)
     {
-        return await _tagService.GetTagsByGroupAsync(group);
+        var result = await _tagService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.TagId }, result);
+    }
+
+    [HttpPut("{id}")]
+    public async Task<IActionResult> Update(int id, UpdateTagCommand command)
+    {
+        if (id != command.TagId) return BadRequest();
+        await _tagService.UpdateAsync(command);
+        return NoContent();
+    }
+
+    [HttpDelete("{id}")]
+    public async Task<IActionResult> Delete(int id)
+    {
+        await _tagService.DeleteAsync(id);
+        return NoContent();
     }
 }

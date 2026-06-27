@@ -10,48 +10,45 @@ namespace LocalCRM.API.Controllers;
 public class DocumentsController : ControllerBase
 {
     private readonly IDocumentService _documentService;
-
-    public DocumentsController(IDocumentService documentService)
-    {
-        _documentService = documentService;
-    }
+    public DocumentsController(IDocumentService documentService) => _documentService = documentService;
 
     [HttpGet]
-    public async Task<ActionResult<List<DocumentDto>>> GetDocuments()
-    {
-        return await _documentService.GetDocumentsAsync();
-    }
+    public async Task<ActionResult<List<DocumentDto>>> GetAll([FromQuery] bool includeDeleted = false) => await _documentService.GetAllAsync(includeDeleted);
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<DocumentDto>> GetDocument(int id)
+    public async Task<ActionResult<DocumentDto>> GetById(int id)
     {
-        var result = await _documentService.GetDocumentByIdAsync(id);
-        if (result == null) return NotFound();
-        return result;
+        var result = await _documentService.GetByIdAsync(id);
+        return result == null ? NotFound() : result;
     }
 
     [HttpPost]
-    public async Task<ActionResult<DocumentDto>> CreateDocument(CreateDocumentCommand command)
+    public async Task<ActionResult<DocumentDto>> Create(CreateDocumentCommand command)
     {
-        var result = await _documentService.CreateDocumentAsync(command);
-        return CreatedAtAction(nameof(GetDocument), new { id = result.DocumentId }, result);
+        var result = await _documentService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.DocumentId }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateDocument(int id, UpdateDocumentCommand command)
+    public async Task<IActionResult> Update(int id, UpdateDocumentCommand command)
     {
         if (id != command.DocumentId) return BadRequest();
-        try { await _documentService.UpdateDocumentAsync(command); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
-        catch (Exception ex) when (ex.Message == "Concurrency conflict") { return Conflict(); }
+        await _documentService.UpdateAsync(command);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteDocument(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        try { await _documentService.DeleteDocumentAsync(id); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
+        await _documentService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _documentService.RestoreAsync(id);
         return NoContent();
     }
 }

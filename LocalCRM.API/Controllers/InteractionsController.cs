@@ -11,47 +11,45 @@ public class InteractionsController : ControllerBase
 {
     private readonly IInteractionService _interactionService;
 
-    public InteractionsController(IInteractionService interactionService)
-    {
-        _interactionService = interactionService;
-    }
+    public InteractionsController(IInteractionService interactionService) => _interactionService = interactionService;
 
     [HttpGet]
-    public async Task<ActionResult<List<InteractionDto>>> GetInteractions()
-    {
-        return await _interactionService.GetInteractionsAsync();
-    }
+    public async Task<ActionResult<List<InteractionDto>>> GetAll([FromQuery] bool includeDeleted = false) => await _interactionService.GetAllAsync(includeDeleted);
 
     [HttpGet("{id}")]
-    public async Task<ActionResult<InteractionDto>> GetInteraction(int id)
+    public async Task<ActionResult<InteractionDto>> GetById(int id)
     {
-        var result = await _interactionService.GetInteractionByIdAsync(id);
-        if (result == null) return NotFound();
-        return result;
+        var result = await _interactionService.GetByIdAsync(id);
+        return result == null ? NotFound() : result;
     }
 
     [HttpPost]
-    public async Task<ActionResult<InteractionDto>> CreateInteraction(CreateInteractionCommand command)
+    public async Task<ActionResult<InteractionDto>> Create(CreateInteractionCommand command)
     {
-        var result = await _interactionService.CreateInteractionAsync(command);
-        return CreatedAtAction(nameof(GetInteraction), new { id = result.InteractionId }, result);
+        var result = await _interactionService.CreateAsync(command);
+        return CreatedAtAction(nameof(GetById), new { id = result.InteractionId }, result);
     }
 
     [HttpPut("{id}")]
-    public async Task<IActionResult> UpdateInteraction(int id, UpdateInteractionCommand command)
+    public async Task<IActionResult> Update(int id, UpdateInteractionCommand command)
     {
         if (id != command.InteractionId) return BadRequest();
-        try { await _interactionService.UpdateInteractionAsync(command); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
-        catch (Exception ex) when (ex.Message == "Concurrency conflict") { return Conflict(); }
+        await _interactionService.UpdateAsync(command);
         return NoContent();
     }
 
     [HttpDelete("{id}")]
-    public async Task<IActionResult> DeleteInteraction(int id)
+    public async Task<IActionResult> Delete(int id)
     {
-        try { await _interactionService.DeleteInteractionAsync(id); }
-        catch (Exception ex) when (ex.Message == "Entity not found") { return NotFound(); }
+        await _interactionService.DeleteAsync(id);
+        return NoContent();
+    }
+
+    [Authorize(Roles = "Administrator")]
+    [HttpPost("{id}/restore")]
+    public async Task<IActionResult> Restore(int id)
+    {
+        await _interactionService.RestoreAsync(id);
         return NoContent();
     }
 }
