@@ -1,0 +1,87 @@
+@page "/companies"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Companies</MudText>
+
+<MudTable Items="@_companies" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" OnRowClick="@((e) => EditCompany(e.Item))" T="CompanyDto">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">New Company</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Reference</MudTh>
+        <MudTh>Name</MudTh>
+        <MudTh>City</MudTh>
+        <MudTh>Type</MudTh>
+        <MudTh>Rating</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Reference">@context.CompanyRef</MudTd>
+        <MudTd DataLabel="Name">@context.Name</MudTd>
+        <MudTd DataLabel="City">@context.City</MudTd>
+        <MudTd DataLabel="Type">@context.CompanyType</MudTd>
+        <MudTd DataLabel="Rating">
+            <MudRating SelectedValue="@context.Rating" ReadOnly="true" />
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditCompany(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteCompany(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<CompanyDto> _companies = new();
+    private bool _loading = true;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadCompanies();
+    }
+
+    private async Task LoadCompanies()
+    {
+        _loading = true;
+        try
+        {
+            _companies = await ApiService.GetAsync<CompanyDto>("api/companies");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading companies: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        Navigation.NavigateTo("/companies/new");
+    }
+
+    private void EditCompany(CompanyDto company)
+    {
+        Navigation.NavigateTo($"/companies/{company.CompanyId}");
+    }
+
+    private async Task DeleteCompany(CompanyDto company)
+    {
+        try
+        {
+            await ApiService.DeleteAsync($"api/companies/{company.CompanyId}");
+            Snackbar.Add("Company deleted", Severity.Success);
+            await LoadCompanies();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error deleting company: " + ex.Message, Severity.Error);
+        }
+    }
+}

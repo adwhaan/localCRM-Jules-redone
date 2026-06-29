@@ -1,0 +1,82 @@
+@page "/notes"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Notes</MudText>
+
+<MudTable Items="@_items" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" OnRowClick="@((e) => EditItem(e.Item))" T=" NoteDto">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">New Note</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>Subject</MudTh>
+        <MudTh>Visibility</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Subject">@context.Subject</MudTd>
+        <MudTd DataLabel="Visibility">@context.Visibility</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditItem(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteItem(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<NoteDto> _items = new();
+    private bool _loading = true;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _items = await ApiService.GetAsync<NoteDto>("api/notes");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading Notes: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        Navigation.NavigateTo("/notes/new");
+    }
+
+    private void EditItem(NoteDto item)
+    {
+        // Usually we use an ID here
+        var idField = typeof(NoteDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        Navigation.NavigateTo($"/notes/{idField}");
+    }
+
+    private async Task DeleteItem(NoteDto item)
+    {
+        var idField = typeof(NoteDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        try
+        {
+            await ApiService.DeleteAsync($"api/notes/{idField}");
+            Snackbar.Add("Note deleted", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error deleting Note: " + ex.Message, Severity.Error);
+        }
+    }
+}

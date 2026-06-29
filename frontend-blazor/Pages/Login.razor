@@ -1,0 +1,66 @@
+@page "/login"
+@layout MainLayout
+
+<MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
+    <MudPaper Elevation="4" Class="pa-8">
+        <MudText Typo="Typo.h4" GutterBottom="true" Align="Align.Center">Login</MudText>
+
+        <EditForm Model="@_loginCommand" OnValidSubmit="HandleLogin">
+            <DataAnnotationsValidator />
+            <MudTextField Label="Username" @bind-Value="_loginCommand.Username" For="@(() => _loginCommand.Username)" Variant="Variant.Outlined" Class="mt-4" />
+            <MudTextField Label="Password" @bind-Value="_loginCommand.Password" For="@(() => _loginCommand.Password)" InputType="InputType.Password" Variant="Variant.Outlined" Class="mt-4" />
+
+            @if (_error != null)
+            {
+                <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
+            }
+
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Class="mt-6 py-3">
+                @if (_loading)
+                {
+                    <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                    <MudText Class="ms-2">Logging in...</MudText>
+                }
+                else
+                {
+                    <MudText>Login</MudText>
+                }
+            </MudButton>
+        </EditForm>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private LoginCommand _loginCommand = new();
+    private bool _loading;
+    private string? _error;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+
+    private async Task HandleLogin()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var success = await ApiService.LoginAsync(_loginCommand);
+            if (success)
+            {
+                Navigation.NavigateTo("/");
+            }
+            else
+            {
+                _error = "Invalid username or password";
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = "An error occurred during login: " + ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}

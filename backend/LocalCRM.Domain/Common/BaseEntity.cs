@@ -1,0 +1,15 @@
+namespace LocalCRM.Domain.Common;
+
+public abstract class BaseEntity
+{
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public string CreatedBy { get; set; } = string.Empty;
+    public DateTime? UpdatedAt { get; set; }
+    public string? UpdatedBy { get; set; }
+}
+
+public abstract class SoftDeletableEntity : BaseEntity
+{
+    public bool IsDeleted { get; set; } = false;
+    public DateTime? DeletedAt { get; set; }
+}

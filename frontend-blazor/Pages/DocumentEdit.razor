@@ -1,0 +1,99 @@
+@page "/documents/{Id}"
+@page "/documents/new"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(IsNew ? "New Document" : "Edit Document")</MudText>
+
+<MudPaper Class="pa-8">
+    <EditForm Model="@_item" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Reference" @bind-Value="_item.DocumentRef" For="@(() => _item.DocumentRef)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Subject" @bind-Value="_item.Subject" For="@(() => _item.Subject)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Type" @bind-Value="_item.DocumentType" For="@(() => _item.DocumentType)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="URL" @bind-Value="_item.DocumentUrl" For="@(() => _item.DocumentUrl)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="mr-2">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Save
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private DocumentDto _item = new();
+    private bool _loading;
+    private bool IsNew => Id == null || Id == "new";
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsNew && int.TryParse(Id, out var id))
+        {
+            _loading = true;
+            try
+            {
+                var result = await ApiService.GetByIdAsync<DocumentDto>($"api/documents/{id}");
+                if (result != null) _item = result;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error loading document: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _loading = true;
+        try
+        {
+            if (IsNew)
+            {
+                await ApiService.PostAsync("api/documents", _item);
+                Snackbar.Add("Document created", Severity.Success);
+            }
+            else
+            {
+                await ApiService.PutAsync($"api/documents/{_item.DocumentId}", _item);
+                Snackbar.Add("Document updated", Severity.Success);
+            }
+            Navigation.NavigateTo("/documents");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving document: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/documents");
+    }
+}

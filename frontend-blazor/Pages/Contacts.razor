@@ -1,0 +1,86 @@
+@page "/contacts"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Contacts</MudText>
+
+<MudTable Items="@_items" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" OnRowClick="@((e) => EditItem(e.Item))" T=" ContactDto">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">New Contact</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>FirstName</MudTh>
+        <MudTh>LastName</MudTh>
+        <MudTh>Email</MudTh>
+        <MudTh>Rating</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="FirstName">@context.FirstName</MudTd>
+        <MudTd DataLabel="LastName">@context.LastName</MudTd>
+        <MudTd DataLabel="Email">@context.Email</MudTd>
+        <MudTd DataLabel="Rating">@context.Rating</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditItem(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteItem(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<ContactDto> _items = new();
+    private bool _loading = true;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _items = await ApiService.GetAsync<ContactDto>("api/contacts");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading Contacts: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        Navigation.NavigateTo("/contacts/new");
+    }
+
+    private void EditItem(ContactDto item)
+    {
+        // Usually we use an ID here
+        var idField = typeof(ContactDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        Navigation.NavigateTo($"/contacts/{idField}");
+    }
+
+    private async Task DeleteItem(ContactDto item)
+    {
+        var idField = typeof(ContactDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        try
+        {
+            await ApiService.DeleteAsync($"api/contacts/{idField}");
+            Snackbar.Add("Contact deleted", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error deleting Contact: " + ex.Message, Severity.Error);
+        }
+    }
+}

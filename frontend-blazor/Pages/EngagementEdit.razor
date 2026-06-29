@@ -1,0 +1,97 @@
+@page "/engagements/{Id}"
+@page "/engagements/new"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(IsNew ? "New Engagement" : "Edit Engagement")</MudText>
+
+<MudPaper Class="pa-8">
+    <EditForm Model="@_item" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Reference" @bind-Value="_item.EngagementRef" For="@(() => _item.EngagementRef)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Status" @bind-Value="_item.EngagementStatus">
+                    <MudSelectItem Value="@("Open")">Open</MudSelectItem>
+                    <MudSelectItem Value="@("Closed")">Closed</MudSelectItem>
+                    <MudSelectItem Value="@("Pending")">Pending</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="mr-2">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Save
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private EngagementDto _item = new();
+    private bool _loading;
+    private bool IsNew => Id == null || Id == "new";
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsNew && int.TryParse(Id, out var id))
+        {
+            _loading = true;
+            try
+            {
+                var result = await ApiService.GetByIdAsync<EngagementDto>($"api/engagements/{id}");
+                if (result != null) _item = result;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error loading engagement: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _loading = true;
+        try
+        {
+            if (IsNew)
+            {
+                await ApiService.PostAsync("api/engagements", _item);
+                Snackbar.Add("Engagement created", Severity.Success);
+            }
+            else
+            {
+                await ApiService.PutAsync($"api/engagements/{_item.EngagementId}", _item);
+                Snackbar.Add("Engagement updated", Severity.Success);
+            }
+            Navigation.NavigateTo("/engagements");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving engagement: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/engagements");
+    }
+}

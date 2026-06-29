@@ -1,0 +1,96 @@
+@page "/"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h3" GutterBottom="true">Dashboard</MudText>
+
+<MudGrid>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" Class="mx-4" Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Companies</MudText>
+                <MudText Typo="Typo.h5">@_stats.CompanyCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Secondary" Class="mx-4" Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Contacts</MudText>
+                <MudText Typo="Typo.h5">@_stats.ContactCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.History" Color="Color.Success" Class="mx-4" Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Interactions</MudText>
+                <MudText Typo="Typo.h5">@_stats.InteractionCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6" md="3">
+        <MudPaper Class="d-flex flex-row pt-6 pb-4" Style="height:100px;">
+            <MudIcon Icon="@Icons.Material.Filled.Handshake" Color="Color.Info" Class="mx-4" Style="width:54px; height:54px;"></MudIcon>
+            <div>
+                <MudText Typo="Typo.subtitle1" Class="mud-text-secondary mb-n1">Engagements</MudText>
+                <MudText Typo="Typo.h5">@_stats.EngagementCount</MudText>
+            </div>
+        </MudPaper>
+    </MudItem>
+
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4" Style="height:400px;">
+            <MudText Typo="Typo.h6">Recent Audit Logs</MudText>
+            <MudList T="string">
+                @foreach (var log in _recentLogs)
+                {
+                    <MudListItem>
+                        <MudText Typo="Typo.body2"><b>@log.ActionType</b> on @log.EntityName (@log.PerformedAt.ToLocalTime()) by @log.PerformedBy</MudText>
+                    </MudListItem>
+                }
+            </MudList>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private DashboardStats _stats = new();
+    private List<AuditLogDto> _recentLogs = new();
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            // Note: In a real app, I'd have a specific dashboard endpoint
+            // For now, I'll fetch counts individually or simulate
+            var companies = await ApiService.GetAsync<CompanyDto>("api/companies");
+            var contacts = await ApiService.GetAsync<ContactDto>("api/contacts");
+            var interactions = await ApiService.GetAsync<InteractionDto>("api/interactions");
+            var engagements = await ApiService.GetAsync<EngagementDto>("api/engagements");
+
+            _stats.CompanyCount = companies.Count;
+            _stats.ContactCount = contacts.Count;
+            _stats.InteractionCount = interactions.Count;
+            _stats.EngagementCount = engagements.Count;
+
+            _recentLogs = (await ApiService.GetAsync<AuditLogDto>("api/auditlogs")).Take(10).ToList();
+        }
+        catch (Exception)
+        {
+            // Handle error or use defaults
+        }
+    }
+
+    public class DashboardStats
+    {
+        public int CompanyCount { get; set; }
+        public int ContactCount { get; set; }
+        public int InteractionCount { get; set; }
+        public int EngagementCount { get; set; }
+    }
+}
