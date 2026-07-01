@@ -1,0 +1,86 @@
+@page "/interactions"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Interactions</MudText>
+
+<MudTable Items="@_items" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" OnRowClick="@((e) => EditItem(e.Item))" T=" InteractionDto">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">New Interaction</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>InteractionDate</MudTh>
+        <MudTh>Subject</MudTh>
+        <MudTh>State</MudTh>
+        <MudTh>IsTask</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="InteractionDate">@context.InteractionDate</MudTd>
+        <MudTd DataLabel="Subject">@context.Subject</MudTd>
+        <MudTd DataLabel="State">@context.State</MudTd>
+        <MudTd DataLabel="IsTask">@context.IsTask</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditItem(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteItem(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<InteractionDto> _items = new();
+    private bool _loading = true;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _items = await ApiService.GetAsync<InteractionDto>("api/interactions");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading Interactions: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        Navigation.NavigateTo("/interactions/new");
+    }
+
+    private void EditItem(InteractionDto item)
+    {
+        // Usually we use an ID here
+        var idField = typeof(InteractionDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        Navigation.NavigateTo($"/interactions/{idField}");
+    }
+
+    private async Task DeleteItem(InteractionDto item)
+    {
+        var idField = typeof(InteractionDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        try
+        {
+            await ApiService.DeleteAsync($"api/interactions/{idField}");
+            Snackbar.Add("Interaction deleted", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error deleting Interaction: " + ex.Message, Severity.Error);
+        }
+    }
+}

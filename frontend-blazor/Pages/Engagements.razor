@@ -1,0 +1,82 @@
+@page "/engagements"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">Engagements</MudText>
+
+<MudTable Items="@_items" Hover="true" Breakpoint="Breakpoint.Sm" Loading="@_loading" OnRowClick="@((e) => EditItem(e.Item))" T=" EngagementDto">
+    <ToolBarContent>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">New Engagement</MudButton>
+    </ToolBarContent>
+    <HeaderContent>
+        <MudTh>EngagementRef</MudTh>
+        <MudTh>EngagementStatus</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="EngagementRef">@context.EngagementRef</MudTd>
+        <MudTd DataLabel="EngagementStatus">@context.EngagementStatus</MudTd>
+        <MudTd DataLabel="Actions">
+            <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" OnClick="@(() => EditItem(context))" />
+            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => DeleteItem(context))" />
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<EngagementDto> _items = new();
+    private bool _loading = true;
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try
+        {
+            _items = await ApiService.GetAsync<EngagementDto>("api/engagements");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error loading Engagements: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void CreateNew()
+    {
+        Navigation.NavigateTo("/engagements/new");
+    }
+
+    private void EditItem(EngagementDto item)
+    {
+        // Usually we use an ID here
+        var idField = typeof(EngagementDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        Navigation.NavigateTo($"/engagements/{idField}");
+    }
+
+    private async Task DeleteItem(EngagementDto item)
+    {
+        var idField = typeof(EngagementDto).GetProperties().FirstOrDefault(p => p.Name.Contains("Id"))?.GetValue(item);
+        try
+        {
+            await ApiService.DeleteAsync($"api/engagements/{idField}");
+            Snackbar.Add("Engagement deleted", Severity.Success);
+            await LoadData();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error deleting Engagement: " + ex.Message, Severity.Error);
+        }
+    }
+}

@@ -1,0 +1,100 @@
+@page "/notes/{Id}"
+@page "/notes/new"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(IsNew ? "New Note" : "Edit Note")</MudText>
+
+<MudPaper Class="pa-8">
+    <EditForm Model="@_item" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField Label="Subject" @bind-Value="_item.Subject" For="@(() => _item.Subject)" Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField Label="Body" @bind-Value="_item.Body" For="@(() => _item.Body)" Lines="5" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Visibility" @bind-Value="_item.Visibility">
+                    <MudSelectItem Value="@("Public")">Public</MudSelectItem>
+                    <MudSelectItem Value="@("Private")">Private</MudSelectItem>
+                    <MudSelectItem Value="@("Internal")">Internal</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="mr-2">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Save
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private NoteDto _item = new();
+    private bool _loading;
+    private bool IsNew => Id == null || Id == "new";
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsNew && int.TryParse(Id, out var id))
+        {
+            _loading = true;
+            try
+            {
+                var result = await ApiService.GetByIdAsync<NoteDto>($"api/notes/{id}");
+                if (result != null) _item = result;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error loading note: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _loading = true;
+        try
+        {
+            if (IsNew)
+            {
+                await ApiService.PostAsync("api/notes", _item);
+                Snackbar.Add("Note created", Severity.Success);
+            }
+            else
+            {
+                await ApiService.PutAsync($"api/notes/{_item.NoteId}", _item);
+                Snackbar.Add("Note updated", Severity.Success);
+            }
+            Navigation.NavigateTo("/notes");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving note: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/notes");
+    }
+}

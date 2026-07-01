@@ -1,0 +1,104 @@
+@page "/interactions/{Id}"
+@page "/interactions/new"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(IsNew ? "New Interaction" : "Edit Interaction")</MudText>
+
+<MudPaper Class="pa-8">
+    <EditForm Model="@_item" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudDatePicker Label="Date" @bind-Date="_interactionDate" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Subject" @bind-Value="_item.Subject" For="@(() => _item.Subject)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="State" @bind-Value="_item.State">
+                    <MudSelectItem Value="@("Planned")">Planned</MudSelectItem>
+                    <MudSelectItem Value="@("Completed")">Completed</MudSelectItem>
+                    <MudSelectItem Value="@("Cancelled")">Cancelled</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCheckBox T="bool" @bind-Value="_item.IsTask" Label="Is Task?" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="mr-2">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Save
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private InteractionDto _item = new() { InteractionDate = DateTime.Now };
+    private DateTime? _interactionDate { get => _item.InteractionDate; set => _item.InteractionDate = value ?? DateTime.Now; }
+    private bool _loading;
+    private bool IsNew => Id == null || Id == "new";
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsNew && int.TryParse(Id, out var id))
+        {
+            _loading = true;
+            try
+            {
+                var result = await ApiService.GetByIdAsync<InteractionDto>($"api/interactions/{id}");
+                if (result != null) _item = result;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error loading interaction: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _loading = true;
+        try
+        {
+            if (IsNew)
+            {
+                await ApiService.PostAsync("api/interactions", _item);
+                Snackbar.Add("Interaction created", Severity.Success);
+            }
+            else
+            {
+                await ApiService.PutAsync($"api/interactions/{_item.InteractionId}", _item);
+                Snackbar.Add("Interaction updated", Severity.Success);
+            }
+            Navigation.NavigateTo("/interactions");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving interaction: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/interactions");
+    }
+}
