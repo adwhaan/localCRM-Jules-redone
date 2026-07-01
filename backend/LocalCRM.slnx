@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="LocalCRM.API/LocalCRM.API.csproj" />
+  <Project Path="LocalCRM.Application.Tests/LocalCRM.Application.Tests.csproj" />
+  <Project Path="LocalCRM.Application/LocalCRM.Application.csproj" />
+  <Project Path="LocalCRM.Domain/LocalCRM.Domain.csproj" />
+  <Project Path="LocalCRM.Infrastructure/LocalCRM.Infrastructure.csproj" />
+</Solution>

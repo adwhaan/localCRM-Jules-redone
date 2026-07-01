@@ -1,0 +1,108 @@
+@page "/companies/{Id}"
+@page "/companies/new"
+@attribute [Authorize]
+
+<MudText Typo="Typo.h4" GutterBottom="true">@(IsNew ? "New Company" : "Edit Company")</MudText>
+
+<MudPaper Class="pa-8">
+    <EditForm Model="@_company" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Name" @bind-Value="_company.Name" For="@(() => _company.Name)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="Reference" @bind-Value="_company.CompanyRef" For="@(() => _company.CompanyRef)" Required="true" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudTextField Label="City" @bind-Value="_company.City" For="@(() => _company.City)" />
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Company Type" @bind-Value="_company.CompanyType">
+                    <MudSelectItem Value="@("Client")">Client</MudSelectItem>
+                    <MudSelectItem Value="@("Partner")">Partner</MudSelectItem>
+                    <MudSelectItem Value="@("Vendor")">Vendor</MudSelectItem>
+                    <MudSelectItem Value="@("Lead")">Lead</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2">Rating</MudText>
+                <MudRating @bind-SelectedValue="_company.Rating" />
+            </MudItem>
+            <MudItem xs="12" Class="d-flex justify-end mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Cancel" Class="mr-2">Cancel</MudButton>
+                <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                    }
+                    Save
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </EditForm>
+</MudPaper>
+
+@code {
+    [Parameter] public string? Id { get; set; }
+    private CompanyDto _company = new();
+    private bool _loading;
+    private bool IsNew => Id == null || Id == "new";
+
+    [Inject] ApiService ApiService { get; set; } = default!;
+    [Inject] NavigationManager Navigation { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!IsNew && int.TryParse(Id, out var id))
+        {
+            _loading = true;
+            try
+            {
+                var result = await ApiService.GetByIdAsync<CompanyDto>($"api/companies/{id}");
+                if (result != null) _company = result;
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add("Error loading company: " + ex.Message, Severity.Error);
+            }
+            finally
+            {
+                _loading = false;
+            }
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        _loading = true;
+        try
+        {
+            if (IsNew)
+            {
+                await ApiService.PostAsync("api/companies", _company);
+                Snackbar.Add("Company created", Severity.Success);
+            }
+            else
+            {
+                await ApiService.PutAsync($"api/companies/{_company.CompanyId}", _company);
+                Snackbar.Add("Company updated", Severity.Success);
+            }
+            Navigation.NavigateTo("/companies");
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add("Error saving company: " + ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void Cancel()
+    {
+        Navigation.NavigateTo("/companies");
+    }
+}
